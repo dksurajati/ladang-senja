@@ -121,87 +121,93 @@ const [titleTop, titleBottom] = t("hero.title");
 
 <script>
   // Vanilla JS: live price estimate and client-side validation for the enquiry form.
-  const form = document.getElementById("enquiry-form") as HTMLFormElement;
-  const totalEl = document.getElementById("estimate-total")!;
-  const detailEl = document.getElementById("estimate-detail")!;
-  const errorEl = document.getElementById("form-error")!;
-  const statusEl = document.getElementById("form-status")!;
-  const villaSel = form.elements.namedItem("villa") as HTMLSelectElement;
-  const checkin = form.elements.namedItem("checkin") as HTMLInputElement;
-  const checkout = form.elements.namedItem("checkout") as HTMLInputElement;
-  const guests = form.elements.namedItem("guests") as HTMLInputElement;
+  // The client router swaps pages without reloading, so set the form up on every page load.
+  document.addEventListener("astro:page-load", initEnquiryForm);
 
-  // Translated messages for the current page language, rendered into data-messages.
-  const msg: Record<string, string> = JSON.parse(form.dataset.messages!);
-  const fill = (s: string, vars: Record<string, string | number>) =>
-    s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
+  function initEnquiryForm() {
+    const form = document.getElementById("enquiry-form") as HTMLFormElement | null;
+    if (!form) return;
+    const totalEl = document.getElementById("estimate-total")!;
+    const detailEl = document.getElementById("estimate-detail")!;
+    const errorEl = document.getElementById("form-error")!;
+    const statusEl = document.getElementById("form-status")!;
+    const villaSel = form.elements.namedItem("villa") as HTMLSelectElement;
+    const checkin = form.elements.namedItem("checkin") as HTMLInputElement;
+    const checkout = form.elements.namedItem("checkout") as HTMLInputElement;
+    const guests = form.elements.namedItem("guests") as HTMLInputElement;
 
-  const idr = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
-  const today = new Date().toISOString().slice(0, 10);
-  checkin.min = today;
-  checkout.min = today;
+    // Translated messages for the current page language, rendered into data-messages.
+    const msg: Record<string, string> = JSON.parse(form.dataset.messages!);
+    const fill = (s: string, vars: Record<string, string | number>) =>
+      s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
 
-  const nights = () => {
-    if (!checkin.value || !checkout.value) return 0;
-    const diff = (new Date(checkout.value).getTime() - new Date(checkin.value).getTime()) / 86400000;
-    return Math.round(diff);
-  };
+    const idr = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+    const today = new Date().toISOString().slice(0, 10);
+    checkin.min = today;
+    checkout.min = today;
 
-  const selected = () => villaSel.options[villaSel.selectedIndex];
+    const nights = () => {
+      if (!checkin.value || !checkout.value) return 0;
+      const diff = (new Date(checkout.value).getTime() - new Date(checkin.value).getTime()) / 86400000;
+      return Math.round(diff);
+    };
 
-  function update() {
-    const opt = selected();
-    const max = Number(opt.dataset.guests);
-    guests.max = String(max);
-    if (checkin.value) checkout.min = checkin.value;
+    const selected = () => villaSel.options[villaSel.selectedIndex];
 
-    const n = nights();
-    if (n > 0) {
-      const price = Number(opt.dataset.price);
-      totalEl.textContent = idr.format(price * n);
-      detailEl.textContent = `${n} ${n > 1 ? msg.nights : msg.night} × ${idr.format(price)}`;
-    } else {
-      totalEl.textContent = msg.pickDates;
-      detailEl.textContent = "";
+    function update() {
+      const opt = selected();
+      const max = Number(opt.dataset.guests);
+      guests.max = String(max);
+      if (checkin.value) checkout.min = checkin.value;
+
+      const n = nights();
+      if (n > 0) {
+        const price = Number(opt.dataset.price);
+        totalEl.textContent = idr.format(price * n);
+        detailEl.textContent = `${n} ${n > 1 ? msg.nights : msg.night} × ${idr.format(price)}`;
+      } else {
+        totalEl.textContent = msg.pickDates;
+        detailEl.textContent = "";
+      }
     }
-  }
 
-  function validate(): string | null {
-    const n = nights();
-    if (!checkin.value || !checkout.value) return msg.errDates;
-    if (checkin.value < today) return msg.errPast;
-    if (n < 1) return msg.errNights;
-    if (Number(guests.value) > Number(selected().dataset.guests))
-      return fill(msg.errGuests, { villa: selected().dataset.name!, n: selected().dataset.guests! });
-    const name = form.elements.namedItem("name") as HTMLInputElement;
-    const email = form.elements.namedItem("email") as HTMLInputElement;
-    if (!name.value.trim()) return msg.errName;
-    if (!email.validity.valid || !email.value) return msg.errEmail;
-    return null;
-  }
+    function validate(): string | null {
+      const n = nights();
+      if (!checkin.value || !checkout.value) return msg.errDates;
+      if (checkin.value < today) return msg.errPast;
+      if (n < 1) return msg.errNights;
+      if (Number(guests.value) > Number(selected().dataset.guests))
+        return fill(msg.errGuests, { villa: selected().dataset.name!, n: selected().dataset.guests! });
+      const name = form.elements.namedItem("name") as HTMLInputElement;
+      const email = form.elements.namedItem("email") as HTMLInputElement;
+      if (!name.value.trim()) return msg.errName;
+      if (!email.validity.valid || !email.value) return msg.errEmail;
+      return null;
+    }
 
-  form.addEventListener("input", () => {
+    form.addEventListener("input", () => {
+      update();
+      errorEl.hidden = true;
+    });
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const problem = validate();
+      if (problem) {
+        errorEl.textContent = problem;
+        errorEl.hidden = false;
+        statusEl.hidden = true;
+        return;
+      }
+      const name = (form.elements.namedItem("name") as HTMLInputElement).value.trim().split(" ")[0];
+      statusEl.textContent = fill(msg.thanks, { name });
+      statusEl.hidden = false;
+      form.querySelector("button")!.blur();
+    });
+
+    // Pre-select a villa when arriving from a detail page (?villa=slug)
+    const fromUrl = new URLSearchParams(location.search).get("villa");
+    if (fromUrl) villaSel.value = fromUrl;
     update();
-    errorEl.hidden = true;
-  });
-
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const problem = validate();
-    if (problem) {
-      errorEl.textContent = problem;
-      errorEl.hidden = false;
-      statusEl.hidden = true;
-      return;
-    }
-    const name = (form.elements.namedItem("name") as HTMLInputElement).value.trim().split(" ")[0];
-    statusEl.textContent = fill(msg.thanks, { name });
-    statusEl.hidden = false;
-    form.querySelector("button")!.blur();
-  });
-
-  // Pre-select a villa when arriving from a detail page (?villa=slug)
-  const fromUrl = new URLSearchParams(location.search).get("villa");
-  if (fromUrl) villaSel.value = fromUrl;
-  update();
+  }
 </script>

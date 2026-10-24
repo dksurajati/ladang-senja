@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import { ClientRouter } from "astro:transitions";
 import { getSite, languages, defaultLang } from "../data/site.js";
 import { useTranslations, localePath, switchLangPath } from "../i18n/ui.js";
 
@@ -33,6 +34,7 @@ const alternates = languages.map((l) => ({ lang: l, href: switchLangPath(Astro.u
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=DM+Sans:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
+    <ClientRouter />
   </head>
   <body>
     <a class="skip" href="#main">{t("skip")}</a>
@@ -72,9 +74,64 @@ const alternates = languages.map((l) => ({ lang: l, href: switchLangPath(Astro.u
     </footer>
 
     <script>
-      // Keep ?villa=… and #section when switching language.
-      document.querySelectorAll<HTMLAnchorElement>(".lang-switch a").forEach((a) => {
-        a.href = a.pathname + location.search + location.hash;
+      // Switch language without a full page reload: the client router swaps the page in place,
+      // and we carry over the reading position and anything typed into the enquiry form.
+      import { navigate } from "astro:transitions/client";
+
+      type Carry = { section: number; offset: number; fields: Record<string, string> };
+      let carry: Carry | null = null;
+
+      const sections = () => Array.from(document.querySelectorAll<HTMLElement>("main > *"));
+
+      function capture(): Carry {
+        const list = sections();
+        let section = 0;
+        list.forEach((el, i) => {
+          if (el.getBoundingClientRect().top <= 1) section = i;
+        });
+        const offset = list[section] ? -list[section].getBoundingClientRect().top : window.scrollY;
+        const fields: Record<string, string> = {};
+        const form = document.getElementById("enquiry-form") as HTMLFormElement | null;
+        if (form) new FormData(form).forEach((v, k) => (fields[k] = String(v)));
+        return { section, offset, fields };
+      }
+
+      document.addEventListener("click", (e) => {
+        const link = (e.target as Element).closest<HTMLAnchorElement>(".lang-switch a");
+        if (!link || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault();
+        if (link.hasAttribute("aria-current")) return;
+        carry = capture();
+        navigate(link.pathname + location.search + location.hash);
+      }, true); // capture phase, so this runs before the router's own link handler
+
+      // Runs after the router has swapped the page and scrolled, so our position wins.
+      document.addEventListener("astro:after-swap", () => {
+        if (!carry) return;
+        const { section, offset, fields } = carry;
+        carry = null;
+        const form = document.getElementById("enquiry-form") as HTMLFormElement | null;
+        if (form) {
+          for (const [name, value] of Object.entries(fields)) {
+            const el = form.elements.namedItem(name) as HTMLInputElement | null;
+            if (el) el.value = value;
+          }
+          // The form pre-selects ?villa= on load; keep it in step with the villa carried over.
+          const url = new URL(location.href);
+          if (fields.villa && url.searchParams.has("villa")) {
+            url.searchParams.set("villa", fields.villa);
+            history.replaceState(history.state, "", url);
+          }
+        }
+        const target = sections()[section];
+        if (target) window.scrollTo({ top: target.offsetTop + offset, behavior: "instant" });
+      });
+
+      // Keep ?villa=… and #section on the plain links too (used when opened in a new tab).
+      document.addEventListener("astro:page-load", () => {
+        document.querySelectorAll<HTMLAnchorElement>(".lang-switch a").forEach((a) => {
+          a.href = a.pathname + location.search + location.hash;
+        });
       });
     </script>
   </body>
