@@ -1,0 +1,10 @@
+---
+import VillaPage from "../../../components/VillaPage.astro";
+import { villaSlugs } from "../../../data/site.js";
+
+// Static site generation: one page per villa, built at build time.
+export function getStaticPaths() {
+  return villaSlugs.map((slug) => ({ params: { slug } }));
+}
+---
+<VillaPage lang="id" slug={Astro.params.slug} />
