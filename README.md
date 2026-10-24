@@ -10,6 +10,7 @@ A concept website for a fictional boutique villa in Ubud, Bali. Built with [Astr
 - **Content separated from layout**: all names, prices and copy live in `src/data/site.js`.
 - **Illustrated scenes in SVG** (`src/components/Scene.astro`) instead of stock photos, with three palettes (dawn, noon, dusk).
 - **Vanilla JS enquiry form** on the home page: live price estimate (nights × rate), guest limits per villa, date checks, and pre-selecting a villa via `?villa=slug`. It does not send data anywhere.
+- **English and Indonesian**: English lives at `/`, Indonesian at `/id/`, with an EN/ID switch in the header that keeps you on the same page. Interface strings are in `src/i18n/ui.js`; villa and experience copy is stored per language in `src/data/site.js`.
 - Warm, earthy palette with Cormorant Garamond + DM Sans, responsive down to 360px, `prefers-reduced-motion` respected.
 
 ## Run it
@@ -30,4 +31,3 @@ npm run build    # outputs static files to dist/
 
 - Replace SVG scenes with real photography and Astro's `<Image />` for optimisation.
 - Connect the form to a real endpoint (Formspree, or a small Node/serverless function).
-- Add an Indonesian translation.

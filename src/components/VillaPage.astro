@@ -1,0 +1,58 @@
+---
+import Base from "../layouts/Base.astro";
+import Scene from "./Scene.astro";
+import { getVillas, formatIDR } from "../data/site.js";
+import { useTranslations, localePath } from "../i18n/ui.js";
+
+interface Props {
+  lang: "en" | "id";
+  slug: string;
+}
+const { lang, slug } = Astro.props;
+const t = useTranslations(lang);
+const villas = getVillas(lang);
+const villa = villas.find((v) => v.slug === slug)!;
+const others = villas.filter((v) => v.slug !== villa.slug);
+---
+<Base lang={lang} title={villa.name} description={villa.summary}>
+  <div class="detail-hero"><Scene variant={villa.scene} label={t("villa.art")(villa.name)} /></div>
+
+  <section class="section">
+    <div class="wrap">
+      <a class="back" href={`${localePath(lang)}#villas`}>{t("villa.back")}</a>
+      <div class="detail">
+        <div>
+          <p class="eyebrow">{t("villa.bedrooms")(villa.bedrooms)} · {villa.size} m²</p>
+          <h1>{villa.name}</h1>
+          <p style="font-size: 1.15rem">{villa.summary}</p>
+          <p class="muted">{villa.description}</p>
+          <h3 style="margin-top: 2rem">{t("villa.features")}</h3>
+          <ul class="feature-list">
+            {villa.features.map((f) => <li>{f}</li>)}
+          </ul>
+        </div>
+
+        <aside class="booking-card">
+          <p class="eyebrow" style="margin: 0">{t("villa.from")}</p>
+          <p style="font-family: var(--serif); font-size: 2.2rem; margin: 0">{formatIDR(villa.price)}</p>
+          <p class="small muted">{t("villa.perNight")}</p>
+          <dl>
+            <dt>{t("villa.guests")}</dt><dd>{t("villa.upTo")(villa.guests)}</dd>
+            <dt>{t("villa.bedroomsLabel")}</dt><dd>{villa.bedrooms}</dd>
+            <dt>{t("villa.size")}</dt><dd>{villa.size} m²</dd>
+          </dl>
+          <a class="btn" style="width: 100%; text-align: center" href={`${localePath(lang)}?villa=${villa.slug}#enquire`}>{t("cta.checkDates")}</a>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-alt">
+    <div class="wrap">
+      <h2>{t("villa.others")}</h2>
+      <div class="others">
+        {others.map((o) => <a class="btn btn-ghost" href={localePath(lang, `villas/${o.slug}/`)}>{o.name}</a>)}
+      </div>
+    </div>
+  </section>
+</Base>

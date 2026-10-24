@@ -1,18 +1,19 @@
 ---
 import Scene from "./Scene.astro";
 import { formatIDR } from "../data/site.js";
+import { useTranslations, localePath } from "../i18n/ui.js";
 
-const { villa } = Astro.props;
-const base = import.meta.env.BASE_URL;
+const { villa, lang } = Astro.props;
+const t = useTranslations(lang);
 ---
-<a class="villa-card" href={`${base}villas/${villa.slug}/`}>
-  <div class="art"><Scene variant={villa.scene} label={`Illustration for ${villa.name}`} /></div>
+<a class="villa-card" href={localePath(lang, `villas/${villa.slug}/`)}>
+  <div class="art"><Scene variant={villa.scene} label={t("villa.art")(villa.name)} /></div>
   <h3>{villa.name}</h3>
   <div class="villa-meta">
-    <span>{villa.bedrooms} bedroom{villa.bedrooms > 1 ? "s" : ""}</span>
-    <span>Up to {villa.guests} guests</span>
+    <span>{t("villa.bedrooms")(villa.bedrooms)}</span>
+    <span>{t("villa.upToGuests")(villa.guests)}</span>
     <span>{villa.size} m²</span>
   </div>
   <p class="muted" style="margin: 8px 0 0">{villa.summary}</p>
-  <p class="price">{formatIDR(villa.price)} <span>/ night</span></p>
+  <p class="price">{formatIDR(villa.price)} <span>{t("villa.perNightShort")}</span></p>
 </a>

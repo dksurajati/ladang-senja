@@ -1,23 +1,31 @@
 ---
 import "../styles/global.css";
-import { site } from "../data/site.js";
+import { getSite, languages, defaultLang } from "../data/site.js";
+import { useTranslations, localePath, switchLangPath } from "../i18n/ui.js";
 
 interface Props {
+  lang?: "en" | "id";
   title?: string;
   description?: string;
 }
-const { title, description = site.tagline } = Astro.props;
-const fullTitle = title ? `${title} · ${site.name}` : `${site.name} · Private villas in Ubud`;
+const { lang = defaultLang, title } = Astro.props;
+const site = getSite(lang);
+const t = useTranslations(lang);
+const description = Astro.props.description ?? site.tagline;
+const fullTitle = title ? `${title} · ${site.name}` : `${site.name} · ${t("meta.defaultTitle")}`;
 const base = import.meta.env.BASE_URL;
+const home = localePath(lang);
+const alternates = languages.map((l) => ({ lang: l, href: switchLangPath(Astro.url.pathname, l) }));
 ---
 <!doctype html>
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <meta name="theme-color" content="#F5EEE3" />
+    {alternates.map((a) => <link rel="alternate" hreflang={a.lang} href={a.href} />)}
     <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -27,14 +35,21 @@ const base = import.meta.env.BASE_URL;
     />
   </head>
   <body>
-    <a class="skip" href="#main">Skip to content</a>
+    <a class="skip" href="#main">{t("skip")}</a>
     <header class="site-header">
       <div class="wrap header-inner">
-        <a class="brand" href={base}>{site.name}</a>
-        <nav aria-label="Main">
-          <a href={`${base}#villas`}>Villas</a>
-          <a href={`${base}#experiences`}>Experiences</a>
-          <a class="nav-cta" href={`${base}#enquire`}>Enquire</a>
+        <a class="brand" href={home}>{site.name}</a>
+        <nav aria-label={t("nav.label")}>
+          <a href={`${home}#villas`}>{t("nav.villas")}</a>
+          <a href={`${home}#experiences`}>{t("nav.experiences")}</a>
+          <a class="nav-cta" href={`${home}#enquire`}>{t("nav.enquire")}</a>
+          <span class="lang-switch" role="group" aria-label={t("lang.label")}>
+            {alternates.map((a) => (
+              <a href={a.href} hreflang={a.lang} lang={a.lang} aria-current={a.lang === lang ? "true" : undefined}>
+                {a.lang.toUpperCase()}
+              </a>
+            ))}
+          </span>
         </nav>
       </div>
     </header>
@@ -50,10 +65,17 @@ const base = import.meta.env.BASE_URL;
           <p class="muted">{site.location}</p>
         </div>
         <p class="muted small concept-note">
-          Concept project. {site.name} is a fictional property, designed and built by
-          <a href={site.authorUrl}>{site.author}</a> with Astro.
+          {t("footer.concept")(site.name)}
+          <a href={site.authorUrl}>{site.author}</a> {t("footer.conceptEnd")}
         </p>
       </div>
     </footer>
+
+    <script>
+      // Keep ?villa=… and #section when switching language.
+      document.querySelectorAll<HTMLAnchorElement>(".lang-switch a").forEach((a) => {
+        a.href = a.pathname + location.search + location.hash;
+      });
+    </script>
   </body>
 </html>

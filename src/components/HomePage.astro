@@ -1,0 +1,207 @@
+---
+import Base from "../layouts/Base.astro";
+import Scene from "./Scene.astro";
+import VillaCard from "./VillaCard.astro";
+import { getSite, getVillas, getExperiences, formatIDR } from "../data/site.js";
+import { useTranslations, formMessages } from "../i18n/ui.js";
+
+interface Props {
+  lang: "en" | "id";
+}
+const { lang } = Astro.props;
+const t = useTranslations(lang);
+const site = getSite(lang);
+const villas = getVillas(lang);
+const experiences = getExperiences(lang);
+const fromPrice = Math.min(...villas.map((v) => v.price));
+const [titleTop, titleBottom] = t("hero.title");
+---
+<Base lang={lang}>
+  <section class="hero">
+    <div class="hero-art"><Scene variant="dusk" label={t("hero.art")} /></div>
+    <div class="wrap hero-copy">
+      <p class="eyebrow">Ubud · Bali</p>
+      <h1>{titleTop}<br />{titleBottom}</h1>
+      <p>{t("hero.lead")(site.tagline)}</p>
+      <div class="hero-actions">
+        <a class="btn" href="#villas">{t("hero.seeVillas")}</a>
+        <a class="btn btn-ghost" href="#enquire">{t("cta.checkDates")}</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap intro">
+      <div>
+        <p class="eyebrow">{t("intro.eyebrow")}</p>
+        <h2>{t("intro.title")}</h2>
+      </div>
+      <div>
+        <p class="muted">{t("intro.text")(site.name)}</p>
+        <div class="facts">
+          <div><strong>{villas.length}</strong><span class="small muted">{t("facts.villas")}</span></div>
+          <div><strong>{t("facts.minutes")}</strong><span class="small muted">{t("facts.toUbud")}</span></div>
+          <div><strong>{villas.reduce((n, v) => n + v.guests, 0)}</strong><span class="small muted">{t("facts.guests")}</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-alt" id="villas">
+    <div class="wrap">
+      <p class="eyebrow">{t("villas.eyebrow")}</p>
+      <h2>{t("villas.title")}</h2>
+      <p class="muted">{t("villas.from")(formatIDR(fromPrice))}</p>
+      <div class="villa-grid">
+        {villas.map((villa) => <VillaCard villa={villa} lang={lang} />)}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="experiences">
+    <div class="wrap">
+      <p class="eyebrow">{t("exp.eyebrow")}</p>
+      <h2>{t("exp.title")}</h2>
+      <div class="exp-grid">
+        {experiences.map((e) => (
+          <div class="exp">
+            <h3>{e.title}</h3>
+            <p>{e.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-alt" id="enquire">
+    <div class="wrap enquire">
+      <div>
+        <p class="eyebrow">{t("enq.eyebrow")}</p>
+        <h2>{t("enq.title")}</h2>
+        <p class="muted">{t("enq.lead")}</p>
+        <p class="small muted">{t("enq.contact")(site.email, site.whatsapp)}</p>
+      </div>
+
+      <form id="enquiry-form" novalidate data-messages={JSON.stringify(formMessages[lang])}>
+        <label>
+          {t("form.villa")}
+          <select name="villa" required>
+            {villas.map((v) => (
+              <option value={v.slug} data-name={v.name} data-price={v.price} data-guests={v.guests}>
+                {t("form.villaOption")(v.name, v.guests)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div class="row">
+          <label>{t("form.checkin")} <input type="date" name="checkin" required /></label>
+          <label>{t("form.checkout")} <input type="date" name="checkout" required /></label>
+        </div>
+        <div class="row">
+          <label>{t("form.guests")} <input type="number" name="guests" min="1" value="2" required /></label>
+          <label>{t("form.name")} <input type="text" name="name" autocomplete="name" required /></label>
+        </div>
+        <label>{t("form.email")} <input type="email" name="email" autocomplete="email" required /></label>
+        <label>{t("form.notes")} <textarea name="notes" rows="3"></textarea></label>
+
+        <div class="estimate" aria-live="polite">
+          <span class="small muted">{t("form.estimate")}</span>
+          <strong id="estimate-total">{t("form.pickDates")}</strong>
+          <span class="small muted" id="estimate-detail"></span>
+        </div>
+
+        <p class="field-error" id="form-error" role="alert" hidden></p>
+        <button class="btn" type="submit">{t("form.submit")}</button>
+        <p class="form-note">{t("form.note")}</p>
+        <div class="form-status" id="form-status" hidden></div>
+      </form>
+    </div>
+  </section>
+</Base>
+
+<script>
+  // Vanilla JS: live price estimate and client-side validation for the enquiry form.
+  const form = document.getElementById("enquiry-form") as HTMLFormElement;
+  const totalEl = document.getElementById("estimate-total")!;
+  const detailEl = document.getElementById("estimate-detail")!;
+  const errorEl = document.getElementById("form-error")!;
+  const statusEl = document.getElementById("form-status")!;
+  const villaSel = form.elements.namedItem("villa") as HTMLSelectElement;
+  const checkin = form.elements.namedItem("checkin") as HTMLInputElement;
+  const checkout = form.elements.namedItem("checkout") as HTMLInputElement;
+  const guests = form.elements.namedItem("guests") as HTMLInputElement;
+
+  // Translated messages for the current page language, rendered into data-messages.
+  const msg: Record<string, string> = JSON.parse(form.dataset.messages!);
+  const fill = (s: string, vars: Record<string, string | number>) =>
+    s.replace(/\{(\w+)\}/g, (_, k) => String(vars[k] ?? ""));
+
+  const idr = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+  const today = new Date().toISOString().slice(0, 10);
+  checkin.min = today;
+  checkout.min = today;
+
+  const nights = () => {
+    if (!checkin.value || !checkout.value) return 0;
+    const diff = (new Date(checkout.value).getTime() - new Date(checkin.value).getTime()) / 86400000;
+    return Math.round(diff);
+  };
+
+  const selected = () => villaSel.options[villaSel.selectedIndex];
+
+  function update() {
+    const opt = selected();
+    const max = Number(opt.dataset.guests);
+    guests.max = String(max);
+    if (checkin.value) checkout.min = checkin.value;
+
+    const n = nights();
+    if (n > 0) {
+      const price = Number(opt.dataset.price);
+      totalEl.textContent = idr.format(price * n);
+      detailEl.textContent = `${n} ${n > 1 ? msg.nights : msg.night} × ${idr.format(price)}`;
+    } else {
+      totalEl.textContent = msg.pickDates;
+      detailEl.textContent = "";
+    }
+  }
+
+  function validate(): string | null {
+    const n = nights();
+    if (!checkin.value || !checkout.value) return msg.errDates;
+    if (checkin.value < today) return msg.errPast;
+    if (n < 1) return msg.errNights;
+    if (Number(guests.value) > Number(selected().dataset.guests))
+      return fill(msg.errGuests, { villa: selected().dataset.name!, n: selected().dataset.guests! });
+    const name = form.elements.namedItem("name") as HTMLInputElement;
+    const email = form.elements.namedItem("email") as HTMLInputElement;
+    if (!name.value.trim()) return msg.errName;
+    if (!email.validity.valid || !email.value) return msg.errEmail;
+    return null;
+  }
+
+  form.addEventListener("input", () => {
+    update();
+    errorEl.hidden = true;
+  });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const problem = validate();
+    if (problem) {
+      errorEl.textContent = problem;
+      errorEl.hidden = false;
+      statusEl.hidden = true;
+      return;
+    }
+    const name = (form.elements.namedItem("name") as HTMLInputElement).value.trim().split(" ")[0];
+    statusEl.textContent = fill(msg.thanks, { name });
+    statusEl.hidden = false;
+    form.querySelector("button")!.blur();
+  });
+
+  // Pre-select a villa when arriving from a detail page (?villa=slug)
+  const fromUrl = new URLSearchParams(location.search).get("villa");
+  if (fromUrl) villaSel.value = fromUrl;
+  update();
+</script>
