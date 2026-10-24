@@ -1,0 +1,45 @@
+---
+// Illustrated rice-terrace scene in SVG, used instead of stock photos.
+// Three palettes match the time of day each villa is named for.
+interface Props {
+  variant?: "dawn" | "noon" | "dusk";
+  label: string;
+}
+const { variant = "noon", label } = Astro.props;
+
+const palettes = {
+  dawn: { sky1: "#F3D9C4", sky2: "#F8EBDD", sun: "#F0B48A", hill: "#8E9C74", t1: "#A3B184", t2: "#B9C495", t3: "#CDD3A6" },
+  noon: { sky1: "#E7DCC6", sky2: "#F4EEE2", sun: "#F2CE8F", hill: "#6F8160", t1: "#86986F", t2: "#9DAD80", t3: "#B5C192" },
+  dusk: { sky1: "#C96F4C", sky2: "#EDB38A", sun: "#F7D9A8", hill: "#4F4A3A", t1: "#6B6346", t2: "#857A53", t3: "#9E8F5F" },
+};
+const p = palettes[variant];
+const id = `g-${variant}-${Math.random().toString(36).slice(2, 7)}`;
+---
+<svg class="scene" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" role="img" aria-label={label}>
+  <defs>
+    <linearGradient id={id} x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color={p.sky1} />
+      <stop offset="1" stop-color={p.sky2} />
+    </linearGradient>
+  </defs>
+  <rect width="800" height="500" fill={`url(#${id})`} />
+  <circle cx="590" cy="170" r="58" fill={p.sun} />
+  <path d="M0 260 C 140 190, 260 210, 380 240 S 640 180, 800 220 L800 500 L0 500 Z" fill={p.hill} />
+  <path d="M0 310 C 160 270, 320 300, 470 290 S 700 260, 800 280 L800 500 L0 500 Z" fill={p.t1} />
+  <path d="M0 360 C 180 330, 340 360, 500 345 S 720 330, 800 340 L800 500 L0 500 Z" fill={p.t2} />
+  <path d="M0 420 C 200 390, 360 425, 540 405 S 740 395, 800 400 L800 500 L0 500 Z" fill={p.t3} />
+  <g stroke={p.hill} stroke-width="2" opacity="0.35" fill="none">
+    <path d="M0 335 C 180 300, 340 330, 500 318 S 720 300, 800 310" />
+    <path d="M0 390 C 200 360, 360 392, 540 375 S 740 365, 800 370" />
+  </g>
+  <g fill={p.hill}>
+    <rect x="148" y="230" width="4" height="70" />
+    <path d="M150 232 q -28 -8 -40 6 q 20 -4 40 -6 q -18 -22 -6 -40 q 2 22 6 40 q 18 -22 40 -14 q -24 2 -40 14 q 30 -2 38 14 q -22 -8 -38 -14 Z" />
+    <rect x="668" y="250" width="4" height="62" />
+    <path d="M670 252 q -26 -8 -36 6 q 18 -4 36 -6 q -16 -20 -4 -36 q 2 20 4 36 q 16 -20 36 -12 q -22 2 -36 12 q 26 -2 34 12 q -20 -8 -34 -12 Z" />
+  </g>
+</svg>
+
+<style>
+  .scene { display: block; width: 100%; height: 100%; }
+</style>

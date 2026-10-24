@@ -1,0 +1,195 @@
+---
+import Base from "../layouts/Base.astro";
+import Scene from "../components/Scene.astro";
+import VillaCard from "../components/VillaCard.astro";
+import { site, villas, experiences, formatIDR } from "../data/site.js";
+
+const fromPrice = Math.min(...villas.map((v) => v.price));
+---
+<Base>
+  <section class="hero">
+    <div class="hero-art"><Scene variant="dusk" label="Illustration of rice terraces at dusk" /></div>
+    <div class="wrap hero-copy">
+      <p class="eyebrow">Ubud · Bali</p>
+      <h1>Slow mornings<br />above the terraces</h1>
+      <p>{site.tagline}, ten minutes from the centre of town.</p>
+      <div class="hero-actions">
+        <a class="btn" href="#villas">See the villas</a>
+        <a class="btn btn-ghost" href="#enquire">Check dates</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap intro">
+      <div>
+        <p class="eyebrow">The place</p>
+        <h2>Built by village craftsmen, run like a home</h2>
+      </div>
+      <div>
+        <p class="muted">
+          {site.name} is three villas on a working rice field. Each one faces the valley, has its own pool,
+          and is looked after by a small team from the village who will cook, plan your days, or leave you alone.
+        </p>
+        <div class="facts">
+          <div><strong>{villas.length}</strong><span class="small muted">private villas</span></div>
+          <div><strong>10 min</strong><span class="small muted">to central Ubud</span></div>
+          <div><strong>{villas.reduce((n, v) => n + v.guests, 0)}</strong><span class="small muted">guests at most</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-alt" id="villas">
+    <div class="wrap">
+      <p class="eyebrow">Stay</p>
+      <h2>Choose your villa</h2>
+      <p class="muted">From {formatIDR(fromPrice)} a night, breakfast included.</p>
+      <div class="villa-grid">
+        {villas.map((villa) => <VillaCard villa={villa} />)}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="experiences">
+    <div class="wrap">
+      <p class="eyebrow">Your days</p>
+      <h2>Things we can arrange</h2>
+      <div class="exp-grid">
+        {experiences.map((e) => (
+          <div class="exp">
+            <h3>{e.title}</h3>
+            <p>{e.text}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-alt" id="enquire">
+    <div class="wrap enquire">
+      <div>
+        <p class="eyebrow">Enquire</p>
+        <h2>Tell us when you'd like to come</h2>
+        <p class="muted">We reply within a day with availability and a confirmed price. No payment is taken here.</p>
+        <p class="small muted">Or write to {site.email} · WhatsApp {site.whatsapp}</p>
+      </div>
+
+      <form id="enquiry-form" novalidate>
+        <label>
+          Villa
+          <select name="villa" required>
+            {villas.map((v) => (
+              <option value={v.slug} data-price={v.price} data-guests={v.guests}>
+                {v.name} (up to {v.guests} guests)
+              </option>
+            ))}
+          </select>
+        </label>
+        <div class="row">
+          <label>Check-in <input type="date" name="checkin" required /></label>
+          <label>Check-out <input type="date" name="checkout" required /></label>
+        </div>
+        <div class="row">
+          <label>Guests <input type="number" name="guests" min="1" value="2" required /></label>
+          <label>Name <input type="text" name="name" autocomplete="name" required /></label>
+        </div>
+        <label>Email <input type="email" name="email" autocomplete="email" required /></label>
+        <label>Anything we should know? <textarea name="notes" rows="3"></textarea></label>
+
+        <div class="estimate" aria-live="polite">
+          <span class="small muted">Estimated total</span>
+          <strong id="estimate-total">Pick your dates</strong>
+          <span class="small muted" id="estimate-detail"></span>
+        </div>
+
+        <p class="field-error" id="form-error" role="alert" hidden></p>
+        <button class="btn" type="submit">Send enquiry</button>
+        <p class="form-note">Concept site: this form checks your details in the browser but does not send them anywhere.</p>
+        <div class="form-status" id="form-status" hidden></div>
+      </form>
+    </div>
+  </section>
+</Base>
+
+<script>
+  // Vanilla JS: live price estimate and client-side validation for the enquiry form.
+  const form = document.getElementById("enquiry-form") as HTMLFormElement;
+  const totalEl = document.getElementById("estimate-total")!;
+  const detailEl = document.getElementById("estimate-detail")!;
+  const errorEl = document.getElementById("form-error")!;
+  const statusEl = document.getElementById("form-status")!;
+  const villaSel = form.elements.namedItem("villa") as HTMLSelectElement;
+  const checkin = form.elements.namedItem("checkin") as HTMLInputElement;
+  const checkout = form.elements.namedItem("checkout") as HTMLInputElement;
+  const guests = form.elements.namedItem("guests") as HTMLInputElement;
+
+  const idr = new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 });
+  const today = new Date().toISOString().slice(0, 10);
+  checkin.min = today;
+  checkout.min = today;
+
+  const nights = () => {
+    if (!checkin.value || !checkout.value) return 0;
+    const diff = (new Date(checkout.value).getTime() - new Date(checkin.value).getTime()) / 86400000;
+    return Math.round(diff);
+  };
+
+  const selected = () => villaSel.options[villaSel.selectedIndex];
+
+  function update() {
+    const opt = selected();
+    const max = Number(opt.dataset.guests);
+    guests.max = String(max);
+    if (checkin.value) checkout.min = checkin.value;
+
+    const n = nights();
+    if (n > 0) {
+      const price = Number(opt.dataset.price);
+      totalEl.textContent = idr.format(price * n);
+      detailEl.textContent = `${n} night${n > 1 ? "s" : ""} × ${idr.format(price)}`;
+    } else {
+      totalEl.textContent = "Pick your dates";
+      detailEl.textContent = "";
+    }
+  }
+
+  function validate(): string | null {
+    const n = nights();
+    if (!checkin.value || !checkout.value) return "Please choose check-in and check-out dates.";
+    if (checkin.value < today) return "Check-in can't be in the past.";
+    if (n < 1) return "Check-out must be at least one night after check-in.";
+    if (Number(guests.value) > Number(selected().dataset.guests))
+      return `${selected().text.split(" (")[0]} sleeps up to ${selected().dataset.guests} guests.`;
+    const name = form.elements.namedItem("name") as HTMLInputElement;
+    const email = form.elements.namedItem("email") as HTMLInputElement;
+    if (!name.value.trim()) return "Please add your name.";
+    if (!email.validity.valid || !email.value) return "Please add a valid email address.";
+    return null;
+  }
+
+  form.addEventListener("input", () => {
+    update();
+    errorEl.hidden = true;
+  });
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const problem = validate();
+    if (problem) {
+      errorEl.textContent = problem;
+      errorEl.hidden = false;
+      statusEl.hidden = true;
+      return;
+    }
+    const name = (form.elements.namedItem("name") as HTMLInputElement).value.trim().split(" ")[0];
+    statusEl.textContent = `Thank you, ${name}. In a live site this would reach our team, and we'd reply within a day.`;
+    statusEl.hidden = false;
+    form.querySelector("button")!.blur();
+  });
+
+  // Pre-select a villa when arriving from a detail page (?villa=slug)
+  const fromUrl = new URLSearchParams(location.search).get("villa");
+  if (fromUrl) villaSel.value = fromUrl;
+  update();
+</script>
